@@ -25,7 +25,7 @@ function verdictHtml(r, mode, ms) {
   const s = r.student;
   const meta = `<p class="mode">${esc(mode)}${ms != null ? ' · ' + (ms / 1000).toFixed(1) + ' s' : ''} · ${new Date().toLocaleTimeString('es-CL')}</p>`;
   return r.ok
-    ? `<div class="verdict ok" role="status"><div class="big">✓ Ingreso permitido</div><img class="avatar lg" alt="Foto del estudiante" src="${s.photo}"><div class="name">${esc(s.name)}</div><span class="pill ok">VIGENTE</span><p class="muted">Compara la foto con la persona</p>${meta}</div>`
+    ? `<div class="verdict ok" role="status"><div class="big">✓ Ingreso permitido</div><img class="avatar lg" alt="Foto del estudiante" src="${s.photo}"><div class="name">${esc(s.name)}</div><span class="pill ok">VIGENTE</span>${meta}<div class="row decide"><button class="btn primary grow" data-d="ok">Dejar pasar</button><button class="btn danger grow" data-d="no">La foto no coincide</button></div></div>`
     : `<div class="verdict bad" role="alert"><div class="big">✕ Ingreso rechazado</div>${s ? `<img class="avatar lg" alt="" src="${s.photo}"><div class="name">${esc(s.name)}</div>` : ''}<p><b>${esc(r.reason)}</b></p><p class="muted">Pide la credencial en vivo o búscalo por nombre</p>${meta}</div>`;
 }
 
@@ -65,20 +65,32 @@ async function viewGuardScan() {
   allStudents().forEach(s => sel.append(new Option(s.name, s.id)));
   const result = document.getElementById('result');
   let seq = 0, hideT = null;
-  result.onclick = () => { clearTimeout(hideT); result.hidden = true };
+  // tap outside the decision buttons to go back to the camera
+  result.onclick = e => { if (e.target.closest('.decide')) return; clearTimeout(hideT); result.hidden = true };
   onTeardown(() => clearTimeout(hideT));
   // every validation replaces the previous verdict
   async function show(promise, mode) {
     const my = ++seq;
     const r = await promise;
     const ms = timerMs();
-    logEvent({ mode, id: r.student?.id || '', name: r.student?.name || '', result: r.ok ? 'Aceptado' : 'Rechazado', reason: r.ok ? '' : r.reason, ms });
+    const eid = logEvent({ mode, id: r.student?.id || '', name: r.student?.name || '', result: r.ok ? 'Aceptado' : 'Rechazado', reason: r.ok ? '' : r.reason, foto: '', ms });
     if (my !== seq) return;
     result.replaceChildren(h(verdictHtml(r, mode, ms)));
     result.hidden = false;
     navigator.vibrate?.(r.ok ? 80 : [60, 60, 60]);
     clearTimeout(hideT);
-    hideT = setTimeout(() => { result.hidden = true }, 10000); // camera view comes back
+    if (r.ok) {
+      // the guard confirms the photo; a mismatch is a lent credential
+      result.querySelector('[data-d=ok]').onclick = () => {
+        updateEvent(eid, { foto: 'Coincide' }); result.hidden = true;
+      };
+      result.querySelector('[data-d=no]').onclick = () => {
+        updateEvent(eid, { result: 'Rechazado', reason: 'Foto no coincide (credencial prestada)', foto: 'No coincide' });
+        result.hidden = true; toast('Ingreso rechazado: la foto no coincide');
+      };
+    } else {
+      hideT = setTimeout(() => { result.hidden = true }, 10000); // camera view comes back
+    }
     result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
   document.getElementById('photo').onclick = async () => {
@@ -133,7 +145,7 @@ function confirmManual(s) {
     <button class="link" id="back">Volver a la búsqueda</button>`);
   $app().replaceChildren(frag); bindGo($app());
   const done = ok => {
-    logEvent({ mode: 'Por nombre', id: s.id, name: s.name, result: ok ? 'Aceptado' : 'Rechazado', reason: ok ? '' : (s.active ? 'Foto no coincide' : 'Credencial no vigente'), ms: timerMs() });
+    logEvent({ mode: 'Por nombre', id: s.id, name: s.name, result: ok ? 'Aceptado' : 'Rechazado', reason: ok ? '' : (s.active ? 'Foto no coincide' : 'Credencial no vigente'), foto: s.active ? (ok ? 'Coincide' : 'No coincide') : '', ms: timerMs() });
     toast(ok ? 'Ingreso registrado' : 'Ingreso rechazado');
     go('guardia', 'nombre');
   };
@@ -221,6 +233,7 @@ function viewGuardLog() {
     <div class="card">
       <div class="row"><span class="grow">Tiempo promedio con cámara</span><b>${avg('Cámara')}</b></div>
       <div class="row"><span class="grow">Tiempo promedio por nombre</span><b>${avg('Por nombre')}</b></div>
+      <div class="row"><span class="grow">Fotos confirmadas por el guardia</span><b>${log.filter(e => e.foto === 'Coincide').length}</b></div>
       ${Object.entries(reasons).map(([r, n]) => `<div class="row"><span class="grow muted">${esc(r)}</span><b>${n}</b></div>`).join('')}
     </div>
     <div class="tablewrap"><table><thead><tr><th>Hora</th><th>Modo</th><th>Estudiante</th><th>Resultado</th><th>Motivo</th><th>Tiempo (s)</th></tr></thead><tbody>
@@ -234,8 +247,8 @@ function viewGuardLog() {
   const pad = n => String(n).padStart(2, '0');
   const localDate = t => { const d = new Date(t); return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}` };
   const localTime = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` };
-  const csv = () => 'fecha;hora;version;modo;id;estudiante;resultado;motivo;tiempo_s\n' +
-    log.map(e => [localDate(e.t), localTime(e.t), e.v, e.mode, e.id, e.name, e.result, e.reason, secs(e.ms).replace('.', ',')]
+  const csv = () => 'fecha;hora;version;modo;id;estudiante;resultado;motivo;foto;tiempo_s\n' +
+    log.map(e => [localDate(e.t), localTime(e.t), e.v, e.mode, e.id, e.name, e.result, e.reason, e.foto || '', secs(e.ms).replace('.', ',')]
       .map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
   const stamp = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` };
   document.getElementById('copy').onclick = () => navigator.clipboard.writeText(csv()).then(() => { exported = true; toast('CSV copiado') }, () => toast('No se pudo copiar'));

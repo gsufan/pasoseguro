@@ -1,6 +1,6 @@
 // Shared config, storage, demo data and DOM helpers
 const APP_VERSION = 'v1.1';
-const BUILD = '1.1.3';   // must match version.json; set by tools/bump.py
+const BUILD = '1.1.4';   // must match version.json; set by tools/bump.py
 const STEP = 30;       // seconds per code
 const DIGITS = 6;
 const WINDOW = 1;      // accepted clock drift, in steps
@@ -49,8 +49,14 @@ function toast(msg) {
 }
 function logEvent(e) {
   const log = store.get('log', []);
-  log.push({ t: new Date().toISOString(), v: APP_VERSION, ...e });
+  const eid = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  log.push({ eid, t: new Date().toISOString(), v: APP_VERSION, ...e });
   store.set('log', log);
+  return eid;
+}
+function updateEvent(eid, patch) {
+  const log = store.get('log', []), e = log.find(x => x.eid === eid);
+  if (e) { Object.assign(e, patch); store.set('log', log) }
 }
 
 // cleanup callbacks for the current view (camera, timers, wake lock)

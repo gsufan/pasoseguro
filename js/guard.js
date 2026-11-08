@@ -228,8 +228,11 @@ function viewGuardLog() {
     </tbody></table></div>
     <div class="row"><button class="btn grow" id="copy">Copiar CSV</button><button class="btn primary grow" id="dl">Descargar CSV</button></div>`);
   $app().replaceChildren(frag); bindGo($app());
-  const csv = () => 'fecha_hora;version;modo;id;estudiante;resultado;motivo;tiempo_s\n' +
-    log.map(e => [e.t, e.v, e.mode, e.id, e.name, e.result, e.reason, secs(e.ms).replace('.', ',')]
+  const pad = n => String(n).padStart(2, '0');
+  const localDate = t => { const d = new Date(t); return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}` };
+  const localTime = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` };
+  const csv = () => 'fecha;hora;version;modo;id;estudiante;resultado;motivo;tiempo_s\n' +
+    log.map(e => [localDate(e.t), localTime(e.t), e.v, e.mode, e.id, e.name, e.result, e.reason, secs(e.ms).replace('.', ',')]
       .map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
   document.getElementById('copy').onclick = () => navigator.clipboard.writeText(csv()).then(() => toast('CSV copiado'), () => toast('No se pudo copiar'));
   document.getElementById('dl').onclick = () => saveCsv(`registro_pasoseguro_${APP_VERSION}.csv`, csv());

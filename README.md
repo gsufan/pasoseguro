@@ -10,8 +10,23 @@ Prototipo funcional de validación de credenciales para INACAP sede Chillán (In
 
 Los estudiantes de ejemplo son ficticios. Las fotos de los participantes se guardan solo en el celular del guardia.
 
+## Estructura
+
+| Archivo | Contenido |
+|---|---|
+| `index.html` | Página y orden de carga de los scripts |
+| `css/styles.css` | Estilos (modo claro y oscuro) |
+| `js/core.js` | Configuración, almacenamiento, estudiantes de ejemplo y utilidades |
+| `js/totp.js` | Generación y verificación de códigos (TOTP) |
+| `js/qr.js` | Dibujo del QR y lectura con cámara o foto |
+| `js/student.js` | Pantallas del estudiante |
+| `js/guard.js` | Pantallas del guardia |
+| `js/app.js` | Inicio y navegación |
+| `js/vendor/` | Librerías qrcode-generator (MIT) y jsQR (Apache 2.0) |
+
 ## Versiones
 
 | Versión | Cambios |
 |---|---|
 | v1 | Versión inicial para el ciclo de testeo 1 |
+| v1.1 | Código separado en archivos. Corrige que el resultado no cambiaba al validar a otra persona. El resultado aparece sobre la cámara, que sigue escaneando. Cronómetro opcional para medir el tiempo de ingreso. Librerías incluidas en el repositorio. |

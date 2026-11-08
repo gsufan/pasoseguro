@@ -153,7 +153,7 @@ function viewGuardStudents() {
       <button class="btn primary" id="nSave">Registrar y mostrar QR de vinculación</button></div>
     <div id="pair"></div>
     <div class="stack" id="list"></div>
-    <button class="btn danger" id="reset">Borrar datos de prueba de este celular</button>
+    <button class="btn danger" id="reset">Borrar estudiantes registrados y sus fotos</button>
     <div id="confirmReset"></div>`);
   $app().replaceChildren(frag); bindGo($app());
   let photo = null;
@@ -196,10 +196,10 @@ function viewGuardStudents() {
   renderList();
   document.getElementById('reset').onclick = () => {
     const c = document.getElementById('confirmReset');
-    c.replaceChildren(h(`<div class="card"><p>Se borran los estudiantes registrados, el registro de validaciones y los códigos usados de este celular.</p><div class="row"><button class="btn danger grow" id="rYes">Borrar</button><button class="btn grow" id="rNo">Cancelar</button></div></div>`));
+    c.replaceChildren(h(`<div class="card"><p>Se borran de este celular los estudiantes registrados y sus fotos. El registro de validaciones se mantiene.</p><div class="row"><button class="btn danger grow" id="rYes">Borrar</button><button class="btn grow" id="rNo">Cancelar</button></div></div>`));
     document.getElementById('rYes').onclick = () => {
-      store.set('enrolled', []); store.set('log', []); store.set('active', {}); store.set('used', {});
-      toast('Datos borrados'); viewGuardStudents();
+      store.set('enrolled', []); store.set('active', {});
+      toast('Estudiantes y fotos borrados'); viewGuardStudents();
     };
     document.getElementById('rNo').onclick = () => c.replaceChildren();
   };
@@ -226,14 +226,24 @@ function viewGuardLog() {
     <div class="tablewrap"><table><thead><tr><th>Hora</th><th>Modo</th><th>Estudiante</th><th>Resultado</th><th>Motivo</th><th>Tiempo (s)</th></tr></thead><tbody>
     ${log.slice().reverse().map(e => `<tr><td>${new Date(e.t).toLocaleTimeString('es-CL')}</td><td>${esc(e.mode)}</td><td>${esc(e.name)}</td><td>${esc(e.result)}</td><td>${esc(e.reason)}</td><td>${secs(e.ms)}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Aún no hay validaciones.</td></tr>'}
     </tbody></table></div>
-    <div class="row"><button class="btn grow" id="copy">Copiar CSV</button><button class="btn primary grow" id="dl">Descargar CSV</button></div>`);
+    <div class="row"><button class="btn grow" id="copy">Copiar CSV</button><button class="btn primary grow" id="dl">Descargar CSV</button></div>
+    <button class="btn danger" id="clearLog" ${log.length ? '' : 'hidden'}>Borrar registro</button>
+    <div id="confirmClear"></div>`);
   $app().replaceChildren(frag); bindGo($app());
+  let exported = false;
   const pad = n => String(n).padStart(2, '0');
   const localDate = t => { const d = new Date(t); return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}` };
   const localTime = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` };
   const csv = () => 'fecha;hora;version;modo;id;estudiante;resultado;motivo;tiempo_s\n' +
     log.map(e => [localDate(e.t), localTime(e.t), e.v, e.mode, e.id, e.name, e.result, e.reason, secs(e.ms).replace('.', ',')]
       .map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
-  document.getElementById('copy').onclick = () => navigator.clipboard.writeText(csv()).then(() => toast('CSV copiado'), () => toast('No se pudo copiar'));
-  document.getElementById('dl').onclick = () => saveCsv(`registro_pasoseguro_${APP_VERSION}.csv`, csv());
+  const stamp = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` };
+  document.getElementById('copy').onclick = () => navigator.clipboard.writeText(csv()).then(() => { exported = true; toast('CSV copiado') }, () => toast('No se pudo copiar'));
+  document.getElementById('dl').onclick = () => { exported = true; saveCsv(`registro_pasoseguro_${APP_VERSION}_${stamp()}.csv`, csv()) };
+  document.getElementById('clearLog').onclick = () => {
+    const c = document.getElementById('confirmClear');
+    c.replaceChildren(h(`<div class="card"><p>${exported ? 'Se borran las validaciones de este celular.' : '<b>Aún no descargas el CSV.</b> Si borras ahora, pierdes la evidencia de este testeo.'}</p><div class="row"><button class="btn danger grow" id="cYes">Borrar registro</button><button class="btn grow" id="cNo">Cancelar</button></div></div>`));
+    document.getElementById('cYes').onclick = () => { store.set('log', []); store.set('used', {}); toast('Registro borrado'); viewGuardLog() };
+    document.getElementById('cNo').onclick = () => c.replaceChildren();
+  };
 }

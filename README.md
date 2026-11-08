@@ -23,6 +23,18 @@ Los estudiantes de ejemplo son ficticios. Las fotos de los participantes se guar
 | `js/guard.js` | Pantallas del guardia |
 | `js/app.js` | Inicio y navegación |
 | `js/vendor/` | Librerías qrcode-generator (MIT) y jsQR (Apache 2.0) |
+| `version.json` | Número de build; la app lo consulta para saber si hay una versión nueva |
+| `tools/bump.py` | Actualiza el número de build en todos los archivos |
+
+## Publicar un cambio
+
+GitHub Pages permite que el navegador guarde los archivos hasta 10 minutos. Para que los celulares tomen el cambio de inmediato, antes de cada commit se sube el número de build:
+
+```
+python3 tools/bump.py 1.1.4
+```
+
+Al abrir la app, si `version.json` trae un build distinto, se recarga sola; si ya estaba abierta, muestra un aviso para actualizar.
 
 ## Versiones
 

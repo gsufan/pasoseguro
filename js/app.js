@@ -13,7 +13,7 @@ function viewHome() {
 }
 
 const ROUTES = {
-  estudiante: () => { const me = store.get('me', null); me ? viewStudentCred(me) : viewStudentPick() },
+  estudiante: () => { const me = store.get('me', null); me ? viewStudentCred(me) : viewStudentStart() },
   guardia: viewGuardScan,
   nombre: viewGuardName,
   estudiantes: viewGuardStudents,
@@ -27,7 +27,15 @@ function go(role, tab) {
 }
 function render() {
   teardown();
-  (ROUTES[location.hash.slice(1)] || viewHome)();
+  const hash = location.hash.slice(1);
+  // pairing link opened from the phone camera
+  if (hash.startsWith('vincular=')) {
+    const cred = parsePair('#' + hash);
+    history.replaceState(null, '', location.pathname + location.search + '#estudiante');
+    if (cred) linkCredential(cred); else toast('El enlace de vinculación no es válido');
+    return ROUTES.estudiante();
+  }
+  (ROUTES[hash] || viewHome)();
 }
 
 window.addEventListener('hashchange', render);

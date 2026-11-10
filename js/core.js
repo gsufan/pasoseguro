@@ -1,6 +1,6 @@
 // Shared config, storage, demo data and DOM helpers
-const APP_VERSION = 'v1.1';
-const BUILD = '1.1.4';   // must match version.json; set by tools/bump.py
+const APP_VERSION = 'v2';
+const BUILD = '2.0.0';   // must match version.json; set by tools/bump.py
 const STEP = 30;       // seconds per code
 const DIGITS = 6;
 const WINDOW = 1;      // accepted clock drift, in steps

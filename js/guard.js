@@ -159,12 +159,15 @@ function viewGuardStudents() {
   const frag = h(`${topBar(true)}
     <div class="stack"><h1>Estudiantes</h1><p class="muted">Registra a un estudiante de prueba con su foto y vincula su celular.</p></div>
     <div class="card"><h2>Nuevo estudiante</h2>
-      <label class="label" for="nName">Nombre y apellido</label>
+      <label class="label" for="nName">Nombre o código (por ejemplo P1)</label>
       <input type="text" id="nName" maxlength="40" autocomplete="off">
       <div class="row"><img class="avatar" id="nPrev" alt="" hidden><button class="btn grow" id="nPhoto">Tomar foto</button></div>
       <button class="btn primary" id="nSave">Registrar y mostrar QR de vinculación</button></div>
     <div id="pair"></div>
     <div class="stack" id="list"></div>
+    <details class="card"><summary><b>Administración: simular matrícula</b></summary>
+      <p class="note" style="margin-top:8px">En un sistema real la vigencia viene de la base de matrícula y el guardia no puede cambiarla. Esta sección solo existe para probar credenciales no vigentes.</p>
+      <div class="stack" id="admin"></div></details>
     <button class="btn danger" id="reset">Borrar estudiantes registrados y sus fotos</button>
     <div id="confirmReset"></div>`);
   $app().replaceChildren(frag); bindGo($app());
@@ -181,7 +184,7 @@ function viewGuardStudents() {
   };
   document.getElementById('nSave').onclick = () => {
     const name = document.getElementById('nName').value.replace(/[|]/g, ' ').replace(/\s+/g, ' ').trim();
-    if (name.length < 3) { toast('Escribe el nombre'); return }
+    if (name.length < 2) { toast('Escribe un nombre o código, por ejemplo P1'); return }
     if (!photo) { toast('Toma la foto del estudiante'); return }
     const s = { id: 'E' + Date.now().toString(36).toUpperCase(), name, active: true, secret: randomSecret(), photo };
     const list = store.get('enrolled', []); list.push(s); store.set('enrolled', list);
@@ -190,8 +193,8 @@ function viewGuardStudents() {
   };
   function showPair(s) {
     const box = document.getElementById('pair');
-    box.replaceChildren(h(`<div class="card cred"><h2>Vincular a ${esc(s.name)}</h2><p class="muted">El estudiante abre “Soy estudiante → Vincular credencial nueva” y escanea este QR.</p><div class="qrbox"><canvas id="pq"></canvas></div><button class="btn" id="pClose">Listo</button></div>`));
-    drawQR(document.getElementById('pq'), `PSPAIR|${s.id}|${s.name}|${s.secret}`);
+    box.replaceChildren(h(`<div class="card cred"><h2>Vincular a ${esc(s.name)}</h2><p class="muted">El estudiante apunta la cámara de su celular a este QR y abre el enlace.</p><div class="qrbox"><canvas id="pq"></canvas></div><button class="btn" id="pClose">Listo</button></div>`));
+    drawQR(document.getElementById('pq'), pairLink(s));
     document.getElementById('pClose').onclick = () => box.replaceChildren();
     box.scrollIntoView({ behavior: 'smooth' });
   }
@@ -199,9 +202,24 @@ function viewGuardStudents() {
     const box = document.getElementById('list'); box.replaceChildren();
     allStudents().forEach(s => {
       const row = h(`<div class="card row"><img class="avatar" alt="" src="${s.photo}"><div class="grow"><b>${esc(s.name)}</b><div class="note">${s.demo ? 'Ejemplo' : 'Registrado en este celular'}</div></div>
-        <button class="btn" data-act="toggle">${s.active ? 'Vigente' : 'No vigente'}</button>${s.demo ? '' : '<button class="btn" data-act="pair">QR</button>'}</div>`).firstChild;
-      row.querySelector('[data-act=toggle]').onclick = () => { const o = store.get('active', {}); o[s.id] = !s.active; store.set('active', o); renderList() };
+        <span class="pill ${s.active ? 'ok' : 'bad'}">${s.active ? 'VIGENTE' : 'NO VIGENTE'}</span>${s.demo ? '' : '<button class="btn" data-act="pair">QR</button>'}</div>`).firstChild;
       row.querySelector('[data-act=pair]')?.addEventListener('click', () => showPair(s));
+      box.append(row);
+    });
+    renderAdmin();
+  }
+  // the guard can't change enrollment; this only simulates the enrollment database
+  function renderAdmin() {
+    const box = document.getElementById('admin'); box.replaceChildren();
+    allStudents().forEach(s => {
+      const row = h(`<div class="stack"><div class="row"><span class="grow">${esc(s.name)}</span><button class="btn" data-act="ask">${s.active ? 'Marcar no vigente' : 'Marcar vigente'}</button></div><div data-confirm hidden></div></div>`).firstChild;
+      const conf = row.querySelector('[data-confirm]');
+      row.querySelector('[data-act=ask]').onclick = () => {
+        conf.replaceChildren(h(`<div class="stack"><span class="note">¿Confirmas que ${esc(s.name)} quedará ${s.active ? 'no vigente' : 'vigente'}?</span><div class="row"><button class="btn danger grow" data-act="yes">Confirmar</button><button class="btn grow" data-act="no">Cancelar</button></div></div>`));
+        conf.hidden = false;
+        conf.querySelector('[data-act=yes]').onclick = () => { const o = store.get('active', {}); o[s.id] = !s.active; store.set('active', o); toast('Matrícula actualizada'); renderList() };
+        conf.querySelector('[data-act=no]').onclick = () => { conf.hidden = true };
+      };
       box.append(row);
     });
   }
